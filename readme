@@ -1,1 +1,4 @@
 default project for data analysis
+
+usethis::use_course("https://github.com/juanchiem/project/archive/main.zip", 
+                    dest = fs::dir_create("/home/juan/Documents/00_data_analysis/juanchi_javi/ma_aurelia"))
