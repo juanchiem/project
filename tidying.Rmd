@@ -1,0 +1,168 @@
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r, eval=FALSE}
+pacman::p_load(tidyverse, googlesheets4, lubridate)
+
+# gs4_deauth()
+googledrive::drive_find(type = "spreadsheet") %>% view
+
+mz <- gs4_get("")
+gs4_browse(mz)
+
+raw_dat <- read_sheet(mz, sheet = "raw", guess_max = 10000) %>% 
+  janitor::clean_names() %>% 
+  mutate_if(is.character, as.factor) 
+
+save(raw_dat, file = "dat_raw.rdata")
+```
+
+```{r}
+pacman::p_load(tidyverse)
+load("~/Documents/00 data_analysis/cba_mz/dat_raw.rdata")
+glimpse(raw_dat)
+ftable(xtabs(~ campana + zona+ localidad, dat))
+```
+
+```{r raw a dat}
+dat <- raw_dat %>% 
+  select(
+    
+    # ubicación y rinde --------------
+    campana, 
+    zona, 
+    regional, 
+    superficie = superficie_ha, 
+    rinde = rendimiento_qq_ha, 
+    tenencia,
+    clase_suelo,
+    sub_clase_de_suelo, 
+    # calidad_de_lote,
+    
+    # Manejo --------------------
+    fecha_siembra = fecha_de_siembra,  
+    antecesor_invernal,
+    antecesor_estival, 
+    tipo_cultivo = maiz_temprano_tadio,
+    espaciamiento_cm, 
+    densidad_pl_ha, 
+    hibrido, 
+    biotecnologia, 
+    
+    # Agua y stresses -------------------- 
+    riego, 
+    napa, 
+    estado_del_perfil_a_la_siembra, 
+    adversidad_1, 
+    dannio_1, 
+    adversidad_2, 
+    dannio_2,
+    aplicacion_de_fungicida, 
+    enfermedad, 
+    n_de_aplicacion_de_insecticidas, 
+    plaga_insecto,
+    starts_with("Especie"),
+    
+    # suelo -------------------
+    total_n_elemento,
+    p_bray_ppm = fosforo_ppm,
+    fertilizante_1,
+    p_fertilizado = dosis_1_kg_ha_28,
+    total_p_elemento, 
+    balance_p
+    )
+  
+  # suelo -------------------
+    analsis_de_suelo, 
+    limitantes_del_suelo,
+    fertilizante_1, 
+    dosis_1_kg_ha, 
+    momento_1, 
+    fertilizante_2, 
+    dosis_2_kg_ha, 
+    EUN = eficiencia_uso_n_kg_grano_kg_n_aplicado, 
+    momento_2, 
+    aplicacion_de_fungicida, 
+    
+    # Adversidades y su manejo  --------------
+    enfermedad, 
+    plaga_insecto, 
+    n_de_aplicacion_de_insecticidas, 
+    tuvo_problemas_para_el_control_de_malezas, 
+    especie_principal, 
+    especie_secundaria, 
+    especie_terciaria, 
+    herbicida_residual_utilizado_en_barbecho_corto_primaveral, 
+    herbicida_residual_utilizado_en_pre_siembra_pre_emergente, 
+    numero_de_aplicaciones_postemergente, 
+    herbicida_postemergente_1,
+    herbicida_postemergente_2,
+    costo_total_de_aplicaciones_de_herbicidas_por_hectareas) %>%  
+```
+
+
+```{r}
+glimpse(dat)
+dat <- dat %>% 
+  mutate_at(vars(zona,campana), as.factor) %>% 
+  # mutate(zona = recode(zona, 'Madariaga- Maipu'= 'Madariaga')) %>%
+  mutate(fecha_siembra = as.Date(lubridate::ymd(fecha_siembra))) %>%   
+  mutate(dannio_1 = as.numeric(replace_na(dannio_1, '0')), 
+         dannio_2 = as.numeric(replace_na(dannio_2, '0')),
+         dano_tot = 100*(dannio_1 + dannio_2)) %>% 
+  mutate(
+    hibrido = stringi::stri_trans_general(hibrido,"Latin-ASCII"),
+    hibrido = str_to_upper(gsub(',', '\\.', hibrido)),
+    hibrido = str_replace_all(hibrido, pattern=" ", repl="")) %>%
+  mutate(regional = str_squish(string = regional),
+         regional = str_to_title(regional), # capital letters
+         regional =
+           stringi::stri_trans_general(regional,"Latin-ASCII"),
+         regional = recode(regional,  # cambios manuales
+                           Montecristo = "Monte Cristo")) %>% 
+  mutate(tipo_cultivo = fct_relevel(tipo_cultivo, 'Temprano', 'Tardío','Segunda')) %>% 
+  mutate(aplicacion_de_fungicida = str_to_upper(aplicacion_de_fungicida))
+  
+
+###
+
+  # mutate_if(is.character, list(stringr::str_squish, stringr::str_to_upper)) #%>% 
+  # mutate(calidad_de_lote = factor(str_replace_all(calidad_de_lote, c(' potencial'), "")) %>% forcats::fct_relevel(., "Bajo", "Medio")) %>% 
+  # mutate(calidad = if_else(calidad_de_lote == "Alto", "Alto", "Medio-bajo")) %>%  
+  # mutate(riego = if_else(is.na(riego), "NO", riego)) %>% 
+  # mutate(fecha_siembra = if_else(month(fecha_siembra) == 1, fecha_siembra %m+% years(1),fecha_siembra))  
+
+# mutate_at(c(campana,zona, regional, calidad_de_lote, 
+#     zona = as.factor(replace_na(zona, '3')), 
+#     fecha_siembra = lubridate::ymd(fecha_siembra), 
+#     GM = str_squish(str_to_upper(gsub(',', '\\.', GM))), 
+#     dano_1 = as.numeric(replace_na(dano_1, '0')), 
+#     dano_2 = as.numeric(replace_na(dano_2, '0')),
+#     dano_tot = dano_1 + dano_2,
+#     cultivo = as.factor(recode(cultivo,  # cambios manuales
+#                                'Soja 1°'= 'soja_1',
+#                                'Soja 2°'= 'soja_2'))) %>% 
+#   mutate(regional = str_squish(string = regional),
+#          regional = str_to_title(regional), # capital letters
+#          regional = stringi::stri_trans_general(regional,"Latin-ASCII"), # sacar acentos
+#          regional = recode(regional,  # cambios manuales
+#                            'Vicuna Mackenna'= 'V. Mackenna',
+#                            Montecristo = "Monte Cristo",
+#                            "Los Surgentes Inriville" = "Los Surgentes-Inriville",
+#                            "Los Surgentes" = "Los Surgentes-Inriville")) %>% 
+#   mutate(antecesor = str_to_upper(gsub(',', '\\.', antecesor))) %>% 
+#   mutate(
+#     tecno_herbicidas = str_to_upper(gsub(',', '\\.', tecno_herbicidas)), 
+#     tecno_rr = str_to_upper(gsub(',', '\\.', tecno_rr)), 
+#     tecno_sts = str_to_upper(gsub(',', '\\.', tecno_sts))) %>% 
+#   mutate(riego = str_to_upper(gsub(',', '\\.', riego)))  %>%
+#   mutate(napa = str_to_upper(gsub(',', '\\.', napa)),
+#          fungicida = case_when(fungicida == "SI" ~ 1, TRUE ~ 0)) %>% 
+#     mutate_at(c(campana,zona, regional, calidad_de_lote, 
+  
+# mutate(semillero = str_to_upper(gsub(',', '\\.', semillero))) %>% 
+# mutate(id_row = 1:nrow(.))
+save(raw_dat, dat, file = here::here("mz_cba.Rdata"))
+```
