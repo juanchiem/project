@@ -2,6 +2,6 @@ default project for data analysis
 
 1 - Run:  
 usethis::use_course("https://github.com/juanchiem/project/archive/main.zip", 
-                    dest = fs::dir_create("/home/juan/Documents/00_data_analysis/juanchi_javi/ma_aurelia"))
+                    dest = fs::dir_create("/home/juan/Documents/00_data_analysis/folder_containing_project_folder"))
                     
 2 - Rename folder and project                    
